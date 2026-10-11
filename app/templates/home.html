@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero panel p-4 p-md-5 p-lg-6">
+  <div class="row align-items-center g-4 g-lg-5">
+    <div class="col-lg-7">
+      <p class="eyebrow">SMART CROP CARE</p>
+      <h1 class="display-4 display-md-3 fw-bold mb-3">Know your leaf.<br><span>Grow with confidence.</span></h1>
+      <p class="lead text-muted mb-4">LeafGuard uses a trained AI model to help you assess plant health from a leaf image, highlight disease risk, and suggest practical monitoring actions.</p>
+      <div class="d-flex flex-wrap gap-3">
+        <a class="btn btn-leaf btn-lg" href="{{ url_for('main.predict') if current_user.is_authenticated else url_for('auth.register') }}">Start Diagnosis</a>
+        {% if current_user.is_authenticated %}
+          <a class="btn btn-secondary" href="{{ url_for('main.dashboard') }}">Open Dashboard</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="hero-visual" aria-hidden="true">
+        <div class="hero-badge">AI diagnosis</div>
+        <div class="hero-plant">🌱</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="feature-grid mt-4 mt-md-5">
+  <div class="feature-card panel p-4 h-100">
+    <div class="feature-icon">📷</div>
+    <h2>Leaf Image Scan</h2>
+    <p>Upload a JPG or PNG photo and let the model review the condition of your plant.</p>
+  </div>
+  <div class="feature-card panel p-4 h-100">
+    <div class="feature-icon">🧠</div>
+    <h2>Explainable AI</h2>
+    <p>See the Grad-CAM focus map to understand which leaf regions influenced the diagnosis.</p>
+  </div>
+  <div class="feature-card panel p-4 h-100">
+    <div class="feature-icon">🌾</div>
+    <h2>Actionable Guidance</h2>
+    <p>Review disease confidence, severity cues, and treatment or prevention recommendations.</p>
+  </div>
+</section>
+{% endblock %}

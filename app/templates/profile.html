@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-card panel mx-auto">
+  <div class="profile-heading">
+    <div class="profile-avatar" aria-hidden="true">{{ name[:1] or "U" }}</div>
+    <div>
+      <p class="eyebrow mb-1">ACCOUNT</p>
+      <h1 class="h2 mb-1">Your profile</h1>
+      <p class="text-muted mb-0">Your LeafGuard account information.</p>
+    </div>
+  </div>
+  <dl class="profile-details mb-0">
+    <div class="profile-detail">
+      <dt>Name</dt>
+      <dd>{{ name }}</dd>
+    </div>
+    <div class="profile-detail">
+      <dt>Email</dt>
+      <dd>{{ current_user.email }}</dd>
+    </div>
+    <div class="profile-detail">
+      <dt>Account ID</dt>
+      <dd>{{ current_user.id }}</dd>
+    </div>
+  </dl>
+</section>
+{% endblock %}

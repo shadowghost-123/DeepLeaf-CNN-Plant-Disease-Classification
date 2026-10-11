@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header mb-4">
+  <p class="eyebrow mb-1">LEAF HEALTH CHECK</p>
+  <h1>Diagnose a leaf</h1>
+  <p class="text-muted mb-0">Images are securely analyzed using the trained model's {{ input_size[0] }} × {{ input_size[1] }} pixel input size (ResNet50 preprocessing).</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="panel p-4 p-md-5 h-100">
+      <form id="uploadForm" method="post" enctype="multipart/form-data">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <label class="form-label fw-semibold mb-0" for="leafFile">Choose or drop a leaf image</label>
+          <span class="form-hint">JPG / PNG • up to 8 MB</span>
+        </div>
+
+        <label class="drop-zone d-flex flex-column align-items-center justify-content-center text-center p-4 mb-3" for="leafFile" id="dropZone">
+          <span class="drop-icon" aria-hidden="true">＋</span>
+          <strong>Drop an image here</strong>
+          <span class="text-muted small">or browse your files</span>
+          <input class="visually-hidden" id="leafFile" type="file" name="file" accept="image/jpeg,image/png" required>
+        </label>
+
+        <div class="upload-meta mb-3">
+          <span id="fileName" aria-live="polite">No image selected</span>
+          <button id="clearFile" type="button" class="btn btn-link btn-sm d-none">Remove</button>
+        </div>
+
+        <button class="btn btn-leaf btn-lg w-100" type="submit">Analyze image</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="panel p-4 p-md-5 h-100">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="h5 mb-0">Browser camera</h2>
+        <span class="form-hint">Optional</span>
+      </div>
+
+      <video id="video" class="camera-video mb-3" autoplay playsinline></video>
+      <canvas id="canvas" class="d-none"></canvas>
+
+      <div class="camera-actions d-flex flex-wrap gap-2">
+        <button id="start" class="btn btn-outline-leaf" type="button">Enable camera</button>
+        <button id="snap" class="btn btn-leaf" type="button" disabled>Capture &amp; analyze</button>
+      </div>
+
+      <form id="cameraForm" method="post" class="mt-3">
+        <input type="hidden" name="camera_data" id="camera_data">
+      </form>
+    </div>
+  </div>
+</div>
+
+<section class="leaf-examples panel mt-4 p-4 p-md-5" aria-labelledby="leaf-examples-heading">
+  <div class="mb-3">
+    <p class="eyebrow mb-1">PHOTO TIPS</p>
+    <h2 id="leaf-examples-heading" class="h4">What kind of image should I upload?</h2>
+    <p class="text-muted mb-0">For best results, upload a clear photo of a single plant leaf with visible details.</p>
+  </div>
+  <div class="leaf-example-grid">
+    <article class="leaf-example-card">
+      <img src="{{ url_for('static', filename='leaf-examples/potato_leaf_disease.jpg') }}" alt="Single potato leaf showing visible spots against a plain background" loading="lazy">
+      <h3>Clear single leaf</h3>
+      <p>Keep one leaf in focus and fill most of the frame.</p>
+    </article>
+    <article class="leaf-example-card">
+      <img src="{{ url_for('static', filename='leaf-examples/corn_leaf_blight.jpg') }}" alt="Corn leaf with visible disease spots" loading="lazy">
+      <h3>Visible symptoms</h3>
+      <p>Include the affected area so its details can be seen.</p>
+    </article>
+    <article class="leaf-example-card">
+      <img src="{{ url_for('static', filename='leaf-examples/corn_healthy.jpg') }}" alt="Well-lit green corn leaf" loading="lazy">
+      <h3>Well-lit photo</h3>
+      <p>Use even natural light and avoid blur or harsh shadows.</p>
+    </article>
+    <article class="leaf-example-card leaf-crop-example">
+      <div class="leaf-crop-images">
+        <img src="{{ url_for('static', filename='leaf-examples/corn_healthy.jpg') }}" alt="" loading="lazy">
+        <img src="{{ url_for('static', filename='leaf-examples/potato_leaf_disease.jpg') }}" alt="" loading="lazy">
+      </div>
+      <h3>Different crops</h3>
+      <p>The model supports leaves from crops such as corn and potato.</p>
+    </article>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const video = document.querySelector('#video');
+const start = document.querySelector('#start');
+const snap = document.querySelector('#snap');
+const form = document.querySelector('#uploadForm');
+const input = document.querySelector('#leafFile');
+const drop = document.querySelector('#dropZone');
+const nameEl = document.querySelector('#fileName');
+const clearBtn = document.querySelector('#clearFile');
+let stream;
+
+function updateFileLabel(file) {
+  const selected = file && file.name ? file.name : 'No image selected';
+  nameEl.textContent = selected;
+  clearBtn.classList.toggle('d-none', !file || !file.name);
+}
+
+input.addEventListener('change', () => updateFileLabel(input.files[0]));
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  updateFileLabel(null);
+});
+
+['dragenter', 'dragover'].forEach(type => {
+  drop.addEventListener(type, event => {
+    event.preventDefault();
+    drop.classList.add('drag-active');
+  });
+});
+
+['dragleave', 'drop'].forEach(type => {
+  drop.addEventListener(type, event => {
+    event.preventDefault();
+    drop.classList.remove('drag-active');
+  });
+});
+
+drop.addEventListener('drop', event => {
+  if (event.dataTransfer.files.length) {
+    input.files = event.dataTransfer.files;
+    input.dispatchEvent(new Event('change'));
+  }
+});
+
+form.addEventListener('submit', () => {
+  const submitBtn = form.querySelector('button[type=submit]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Starting analysis…';
+});
+
+start.onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = stream;
+    snap.disabled = false;
+    start.textContent = 'Camera ready';
+  } catch (error) {
+    alert('Camera permission is unavailable. Use file upload instead.');
+  }
+};
+
+snap.onclick = () => {
+  const canvas = document.querySelector('#canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  document.querySelector('#camera_data').value = canvas.toDataURL('image/jpeg', 0.9);
+  document.querySelector('#cameraForm').submit();
+};
+</script>
+{% endblock %}

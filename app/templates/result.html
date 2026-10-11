@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 page-header">
+  <div>
+    <p class="eyebrow mb-1">DIAGNOSIS RESULT</p>
+    <h1 class="mb-0">Leaf assessment</h1>
+  </div>
+  <div class="action-stack">
+    <a class="btn btn-outline-leaf" href="{{ url_for('main.predict') }}">New scan</a>
+    <a class="btn btn-leaf" href="{{ result.report_url }}">Download PDF Report</a>
+  </div>
+</div>
+
+<div class="panel p-4 p-md-5 result-card">
+  <div class="result-header mb-4">
+    <p class="eyebrow mb-2">{{ result.category }}</p>
+    <h2>{{ result.label }}</h2>
+  </div>
+
+  {% if result.confidence < 0.6 %}
+    <div class="alert alert-warning soft-warning">Low confidence: retake the photo in good daylight with one leaf in focus.</div>
+  {% endif %}
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="result-image-panel">
+        <h6>Original leaf</h6>
+        <img class="result-image" src="{{ result.image_url }}" alt="Uploaded leaf">
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="result-image-panel">
+        <h6>Grad-CAM focus map</h6>
+        <img class="result-image" src="{{ result.heatmap_url }}" alt="Heatmap highlighting influential leaf regions">
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-4">
+      <div class="mini-card">
+        <span>Confidence</span>
+        <strong>{{ (result.confidence*100)|round(1) }}%</strong>
+        <div class="confidence-bar mt-3" aria-label="Model confidence">
+          <span style="width: {{ (result.confidence*100)|round }}%"></span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="mini-card">
+        <span>Health status</span>
+        <strong>{{ 'Healthy' if result.category == 'Healthy Leaf' else 'Diseased' }}</strong>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="mini-card">
+        <span>Severity</span>
+        <strong class="badge severity severity-{{ result.severity|lower }} d-inline-flex align-items-center justify-content-center mt-2">{{ result.severity }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="recommendation-card">
+        <h5>Treatment</h5>
+        <p>{{ result.treatment }}</p>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="recommendation-card">
+        <h5>Prevention</h5>
+        <p>{{ result.prevention }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-light mt-4 small mb-0">AI guidance is a screening aid. Confirm unusual symptoms with a local agronomist.</div>
+</div>
+{% endblock %}

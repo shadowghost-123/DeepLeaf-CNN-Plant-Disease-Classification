@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-4">
+  <p class="eyebrow mb-1">YOUR GROWING SEASON</p>
+  <h1>Dashboard</h1>
+  <p class="text-muted">Your Plant Health Analysis Overview</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <article class="panel metric-card">
+      <span>Total Scans</span>
+      <strong>{{ total }}</strong>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="panel metric-card">
+      <span>Healthy</span>
+      <strong>{{ healthy_count }}</strong>
+      <small>{{ healthy_ratio }}% of scans</small>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="panel metric-card">
+      <span>Diseased</span>
+      <strong>{{ diseased_count }}</strong>
+      <small>{{ disease_ratio }}% of scans</small>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="panel metric-card">
+      <span>Average Confidence</span>
+      <strong>{{ average_confidence }}%</strong>
+    </article>
+  </div>
+</div>
+
+{% if total %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <section class="panel chart-panel">
+      <h2 class="h5">Disease vs Healthy</h2>
+      <div class="chart-wrap"><canvas id="healthChart" aria-label="Healthy vs diseased distribution"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="panel chart-panel">
+      <h2 class="h5">Top Detected Diseases</h2>
+      <div class="chart-wrap"><canvas id="diseaseChart" aria-label="Most frequently detected diseases"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-8">
+    <section class="panel chart-panel">
+      <h2 class="h5">Average Confidence Over Time</h2>
+      <div class="chart-wrap chart-wrap-short"><canvas id="confidenceChart" aria-label="Average confidence over time"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-4">
+    <section class="panel chart-panel">
+      <h2 class="h5">Severity Distribution</h2>
+      <div class="chart-wrap"><canvas id="severityChart" aria-label="Severity distribution"></canvas></div>
+    </section>
+  </div>
+</div>
+{% else %}
+<div class="panel p-5 text-center">
+  <h2 class="h4">No scan data yet.</h2>
+  <p class="text-muted">Upload your first leaf image to start building your plant health dashboard.</p>
+  <a class="btn btn-leaf" href="{{ url_for('main.predict') }}">Start a diagnosis</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if total %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const data = {{ dashboard_data|tojson }};
+const green = '#4c8b57';
+const pale = '#dcebd9';
+const gold = '#d4a948';
+const red = '#c96767';
+const common = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 650 },
+  plugins: {
+    legend: { position: 'bottom' },
+    tooltip: {
+      backgroundColor: '#20352b',
+      padding: 12,
+      displayColors: true
+    }
+  }
+};
+
+new Chart(document.getElementById('healthChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Healthy', 'Diseased'],
+    datasets: [{
+      data: [data.healthy_count, data.diseased_count],
+      backgroundColor: [green, '#dfe9de'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    ...common,
+    cutout: '62%',
+    plugins: {
+      ...common.plugins,
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.label}: ${context.parsed} (${((context.parsed / (data.healthy_count + data.diseased_count || 1)) * 100).toFixed(1)}%)`
+        }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('diseaseChart'), {
+  type: 'bar',
+  data: {
+    labels: data.disease_labels,
+    datasets: [{
+      label: 'Detected scans',
+      data: data.disease_counts,
+      backgroundColor: pale,
+      borderColor: green,
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    ...common,
+    indexAxis: 'y',
+    plugins: {
+      ...common.plugins,
+      legend: { display: false }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        title: { display: true, text: 'Number of Scans' },
+        ticks: { precision: 0 }
+      },
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+new Chart(document.getElementById('confidenceChart'), {
+  type: 'line',
+  data: {
+    labels: data.confidence_dates,
+    datasets: [{
+      label: 'Average confidence',
+      data: data.confidence_values,
+      borderColor: green,
+      backgroundColor: pale,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3
+    }]
+  },
+  options: {
+    ...common,
+    scales: {
+      x: {
+        title: { display: true, text: 'Date' }
+      },
+      y: {
+        beginAtZero: true,
+        max: 100,
+        title: { display: true, text: 'Confidence (%)' }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('severityChart'), {
+  type: 'doughnut',
+  data: {
+    labels: data.severity_labels,
+    datasets: [{
+      data: data.severity_counts,
+      backgroundColor: [green, gold, red],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    ...common,
+    cutout: '60%',
+    plugins: {
+      ...common.plugins,
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.label}: ${context.parsed} scans`
+        }
+      }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

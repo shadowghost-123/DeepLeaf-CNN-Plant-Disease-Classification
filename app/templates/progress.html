@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel p-4 p-md-5 mx-auto analysis-panel">
+  <p class="eyebrow mb-1">ANALYSIS IN PROGRESS</p>
+  <h1>Reading your leaf</h1>
+  <p class="text-muted">This can take a moment. You can keep this page open while the trained model analyzes your image.</p>
+
+  <ol id="analysisSteps" class="analysis-steps list-unstyled my-4" aria-live="polite"></ol>
+
+  <div id="analysisError" class="alert alert-danger d-none" role="alert"></div>
+
+  <div id="analysisDone" class="d-none">
+    <a id="viewResult" class="btn btn-leaf" href="#">View assessment</a>
+  </div>
+
+  <div class="analysis-loading" aria-live="polite">
+    <div id="analysisSpinner" class="spinner-border text-success" role="status">
+      <span class="visually-hidden">Analyzing…</span>
+    </div>
+    <span class="loading-text">Processing</span>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusUrl = {{ status_url|tojson }};
+const stepsEl = document.querySelector('#analysisSteps');
+const POLL_REQUEST_TIMEOUT_MS = 15000;
+const POLL_RETRY_WINDOW_MS = 90000;
+const POLL_RETRY_DELAY_MS = 1000;
+const pollingStartedAt = Date.now();
+
+function renderSteps(steps) {
+  stepsEl.innerHTML = '';
+  steps.forEach((step) => {
+    const li = document.createElement('li');
+    li.className = 'analysis-step ' + step.status;
+    const icon = step.status === 'done' ? '✓' : step.status === 'in_progress' ? '…' : step.status === 'failed' ? '!' : '○';
+    li.innerHTML = '<span class="step-icon" aria-hidden="true"></span><span class="step-copy"><strong></strong><small></small></span>';
+    li.querySelector('.step-icon').textContent = icon;
+    li.querySelector('strong').textContent = step.name;
+    li.querySelector('small').textContent = step.detail;
+    stepsEl.appendChild(li);
+  });
+}
+
+async function poll() {
+  const controller = new AbortController();
+  const requestTimeout = window.setTimeout(() => controller.abort(), POLL_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(statusUrl, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error('Unable to check this analysis. Reload the page or start a new scan.');
+    }
+    const job = await response.json();
+    renderSteps(job.steps);
+
+    if (job.status === 'complete') {
+      document.querySelector('#analysisSpinner').classList.add('d-none');
+      document.querySelector('#analysisDone').classList.remove('d-none');
+      document.querySelector('#viewResult').href = job.result.result_url;
+      window.location.assign(job.result.result_url);
+      return;
+    }
+
+    if (job.status === 'failed') {
+      document.querySelector('#analysisSpinner').classList.add('d-none');
+      const error = document.querySelector('#analysisError');
+      error.textContent = job.error;
+      error.classList.remove('d-none');
+      return;
+    }
+
+    window.setTimeout(poll, 700);
+  } catch (error) {
+    const isTransientConnectionError = error.name === 'TypeError' || error.name === 'AbortError';
+    if (isTransientConnectionError && Date.now() - pollingStartedAt < POLL_RETRY_WINDOW_MS) {
+      window.setTimeout(poll, POLL_RETRY_DELAY_MS);
+    } else {
+      document.querySelector('#analysisSpinner').classList.add('d-none');
+      const box = document.querySelector('#analysisError');
+      box.textContent = isTransientConnectionError
+        ? `Unable to reconnect to check this analysis after 90 seconds. ${error.message}`
+        : error.message;
+      box.classList.remove('d-none');
+    }
+  } finally {
+    window.clearTimeout(requestTimeout);
+  }
+}
+
+poll();
+</script>
+{% endblock %}

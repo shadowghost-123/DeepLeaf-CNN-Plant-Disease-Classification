@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header mb-4">
+  <p class="eyebrow mb-1">YOUR HISTORY</p>
+  <h1>Past assessments</h1>
+  <p class="text-muted mb-0">Past assessments stay linked to your account.</p>
+</div>
+
+{% if predictions %}
+<div class="row g-4">
+  {% for p in predictions %}
+  <div class="col-md-6 col-xl-4">
+    <article class="panel history-card h-100">
+      <img class="history-thumb" src="{{ url_for('main.user_upload', path=p.image_path) }}" alt="Uploaded leaf">
+      <div class="p-3">
+        <p class="eyebrow mt-0 mb-2">{{ p.category }}</p>
+        <h5>{{ p.label }}</h5>
+        <p class="small text-muted mb-2">{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="badge severity severity-{{ p.severity|lower }}">{{ p.severity }}</span>
+          <span class="confidence-inline">{{ (p.confidence*100)|round(1) }}%</span>
+        </div>
+        <a class="btn btn-link mt-3 p-0" href="{{ url_for('main.view_result', prediction_id=p.id) }}">View result</a>
+        <form class="d-inline" method="post" action="{{ url_for('main.delete_prediction', prediction_id=p.id) }}" onsubmit="return confirm('Delete this assessment from your history?');">
+          <button class="btn btn-outline-danger btn-sm mt-3 ms-2" type="submit">Delete</button>
+        </form>
+      </div>
+    </article>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel p-5 text-center empty-state">
+  <h2 class="h4">No diagnoses yet.</h2>
+  <p class="text-muted">Upload your first leaf image to build a personal plant health history.</p>
+  <a class="btn btn-leaf" href="{{ url_for('main.predict') }}">Scan your first leaf</a>
+</div>
+{% endif %}
+{% endblock %}
